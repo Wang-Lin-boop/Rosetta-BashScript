@@ -5,7 +5,7 @@ FunFoldes
 ---
 Rosetta FunFoldes Pipeline. A motif grafting method to design vaccines.
 **Reference**
-+ [Official documents](https://new.rosettacommons.org/docs/latest/scripting_documentation/RosettaScripts/composite_protocols/fold_from_loops/RunningFunFolDes)
-+ [Paper](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006623)
-+ [Application](https://science.sciencemag.org/content/368/6492/eaay5051.full)
++ [Official documents: Running FunFolDes](https://new.rosettacommons.org/docs/latest/scripting_documentation/RosettaScripts/composite_protocols/fold_from_loops/RunningFunFolDes)
++ [Methodology Paper: _PLOS Computational Biology 14(11): e1006623_](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006623)
++ [Application Paper: _Science 15 May 2020_:_](https://science.sciencemag.org/content/368/6492/eaay5051.full)
 
