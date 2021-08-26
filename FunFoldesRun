@@ -17,6 +17,7 @@ locally=false
 nstructs=100
 rmsd_threshold=5
 cpu_queue=siais_cpu_1
+Top_OUT=200
 
 function usage(){
 cat<<USAGE
@@ -41,13 +42,16 @@ Input Options:
 Designing Options:
     -S  Scoring Function Type. <Normal>
             Normal: ref2015 and no extra reweight.
-            helix-favor: ref2015 and helix-favor.
+            ss-favor: ref2015 and ss-favor.
             Science2020: Score function in Science 15 May 2020.
             Advance: Science2020 with ref2015.
     -R  Relax Mode in Design. static, pack or packmin. <static>
     -p  nstructs in designing. <100>
     -Y  RMSD threshold for desgin. <5>
     -F  Fixed Region for Template/Scaffold. (Not enabled)
+
+OUTPUT Options:
+    -o  Number of stctures will mv to dir Top_xxx by Total_Score. <200>
 
 Job management system Options:
     -x  cpu queues to run this job: <siais_gpu_1>
@@ -159,7 +163,7 @@ cat << SCORE >> ${job_name}.xml
     </ScoreFunction>
   </SCOREFXNS>
 SCORE
-elif [ ${Scoring} == "helix-favor" ];then
+elif [ ${Scoring} == "ss-favor" ];then
 cat << SCORE >> ${job_name}.xml
   <SCOREFXNS>
     <ScoreFunction name="centroid" weights="cen_std" >
@@ -401,7 +405,7 @@ PROTOCOLS
     echo "</ROSETTASCRIPTS>" >> ${job_name}.xml
 }
 
-while getopts ":ha:d:H:S:D:t:i:m:r:T:M:R:n:x:v:p:A:" opt
+while getopts ":ha:d:H:S:D:t:i:m:r:T:M:R:n:x:v:p:A:o:" opt
 do
   case $opt in
     h)
@@ -453,6 +457,8 @@ do
         CPUnum=$OPTARG;;
     x)
         cpu_queue=$OPTARG;;
+    o)
+        Top_OUT=$OPTARG;;
     ?)
         echo ""
         echo "Error: Do not use undefined options."
@@ -461,6 +467,20 @@ do
         exit;;
     esac
 done
+
+#check paramters
+if [ "${Template}" == "" ] || [ "${Motifpdb}" == "" ] || [ "${insertion_region}" == "" ] || [ "${motif_array}" == "" ] || [ "${receptor_chain}" == "" ] || [ "${scaffold_region}" == "" ];then
+  echo "Error: Options -T -M -m -i -t -r are require paramters."
+  echo "
+    -T ${Template}
+    -M ${Motifpdb}
+    -m ${motif_array}
+    -i ${insertion_region}
+    -r ${receptor_chain}
+    -t ${scaffold_region}
+  "
+  exit
+fi
 
 # Parse job name and mkdir
 job_name=$(basename ${Template%%.pdb})-$(basename ${Motifpdb%%.pdb})-${Scoring}-${Relax_Mode}
@@ -490,6 +510,10 @@ module load compiler/gnu/8.3.0
 cd \$PBS_O_WORKDIR
 
 mpirun -machinefile \${PBS_NODEFILE} -np ${CPUnum} ${rosetta_app}/rosetta_scripts.mpi.linuxgccrelease -parser:protocol ${job_name}.xml -s $(basename ${Template}) -out:nstruct ${nstructs} -out:path:pdb FunFoldes_OUT -out:file:scorefile ${job_name}_OUT.sc -ignore_zero_occupancy 0 -in:ignore_unrecognized_res -in:ignore_waters -out:levels protocols.fold_from_loops:500 protocols.relax:500 protocols.denovo_design.movers.FastDesign:500 protocols.rosetta_scripts.ParsedProtocol:500 -out:mute protocols.abinitio ${restore_talaris_behavior}
+tail -n +3 *_OUT.sc | sort -nk 2 | awk '{print $40}' | head -n ${Top_OUT} > top_${Top_OUT}
+mkdir Top_${Top_OUT}
+cat top_${Top_OUT} | parallel -j 8 cp FunFoldes_OUT/{}.pdb Top_${Top_OUT}/{}.pdb
+
 CPU
 qsub ${job_name}_sub.pbs
 elif [ $cpu_queue == "amdnode" ];then
@@ -507,6 +531,9 @@ module load compiler/gnu/8.3.0
 cd \$PBS_O_WORKDIR
 
 mpirun -machinefile \${PBS_NODEFILE} -np ${CPUnum} ${rosetta_app}/rosetta_scripts.mpi.linuxgccrelease -parser:protocol ${job_name}.xml -s $(basename ${Template}) -out:nstruct ${nstructs} -out:path:pdb FunFoldes_OUT -out:file:scorefile ${job_name}_OUT.sc -ignore_zero_occupancy 0 -in:ignore_unrecognized_res -in:ignore_waters -out:levels protocols.fold_from_loops:500 protocols.relax:500 protocols.denovo_design.movers.FastDesign:500 protocols.rosetta_scripts.ParsedProtocol:500 -out:mute protocols.abinitio ${restore_talaris_behavior}
+tail -n +3 *_OUT.sc | sort -nk 2 | awk '{print $40}' | head -n ${Top_OUT} > top_${Top_OUT}
+mkdir Top_${Top_OUT}
+cat top_${Top_OUT} | parallel -j 8 cp FunFoldes_OUT/{}.pdb Top_${Top_OUT}/{}.pdb
 CPU
 qsub ${job_name}_sub.pbs
 elif [ $cpu_queue == "normal" ];then
@@ -524,6 +551,9 @@ module load compiler/gnu/8.3.0
 cd \$PBS_O_WORKDIR
 
 mpirun -np ${CPUnum} ${rosetta_app}/rosetta_scripts.mpi.linuxgccrelease -parser:protocol ${job_name}.xml -s $(basename ${Template}) -out:nstruct ${nstructs} -out:path:pdb FunFoldes_OUT -out:file:scorefile ${job_name}_OUT.sc -ignore_zero_occupancy 0 -in:ignore_unrecognized_res -in:ignore_waters -out:levels protocols.fold_from_loops:500 protocols.relax:500 protocols.denovo_design.movers.FastDesign:500 protocols.rosetta_scripts.ParsedProtocol:500 -out:mute protocols.abinitio ${restore_talaris_behavior}
+tail -n +3 *_OUT.sc | sort -nk 2 | awk '{print $40}' | head -n ${Top_OUT} > top_${Top_OUT}
+mkdir Top_${Top_OUT}
+cat top_${Top_OUT} | parallel -j 8 cp FunFoldes_OUT/{}.pdb Top_${Top_OUT}/{}.pdb
 CPU
 qsub ${job_name}_sub.pbs
 elif [ $cpu_queue == "siais_cpu_2" ];then
@@ -541,6 +571,9 @@ module load compiler/gnu/8.3.0
 cd \$PBS_O_WORKDIR
 
 mpirun -machinefile \${PBS_NODEFILE} -np ${CPUnum} ${rosetta_app}/rosetta_scripts.mpi.linuxgccrelease -parser:protocol ${job_name}.xml -s $(basename ${Template}) -out:nstruct ${nstructs} -out:path:pdb FunFoldes_OUT -out:file:scorefile ${job_name}_OUT.sc -ignore_zero_occupancy 0 -in:ignore_unrecognized_res -in:ignore_waters -out:levels protocols.fold_from_loops:500 protocols.relax:500 protocols.denovo_design.movers.FastDesign:500 protocols.rosetta_scripts.ParsedProtocol:500 -out:mute protocols.abinitio ${restore_talaris_behavior}
+tail -n +3 *_OUT.sc | sort -nk 2 | awk '{print $40}' | head -n ${Top_OUT} > top_${Top_OUT}
+mkdir Top_${Top_OUT}
+cat top_${Top_OUT} | parallel -j 8 cp FunFoldes_OUT/{}.pdb Top_${Top_OUT}/{}.pdb
 CPU
 qsub ${job_name}_sub.pbs
 fi
