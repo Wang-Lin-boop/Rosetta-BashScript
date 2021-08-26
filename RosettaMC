@@ -1,0 +1,35 @@
+#!/bin/bash
+# (Not enabled)
+
+rosetta_home=/home/bailab/software/rosetta_src_2020.08.61146_bundle
+rosetta_app=/home/bailab/software/rosetta_src_2020.08.61146_bundle/main/source/bin
+rosetta_db=/home/bailab/software/rosetta_src_2020.08.61146_bundle/main/database
+
+nstruct=$3
+input_pdb=$1
+cst_contain=$2 #Example: "Pocket 0.25 283:A,105:A"
+echo $2 >> ${input_pdb%%.pdb}.cst
+cst_file=${input_pdb%%.pdb}.cst
+
+echo "pocket_constraint = 1.0" > pocket.wts.patch
+
+mkdir ${input_pdb%%.pdb}_Relax_OUT
+
+if [ $nstruct -gt 32 ]; then
+    CPUnum=32
+else
+    CPUnum=$nstruct
+done
+
+mpirun -np $CPUnum ${rosetta_app}/pocket_relax.linuxgccrelease -database $rosetta_db -in:file:s $input_pdb -pocket_max_size 300 -pocket_num_angles 2 -score:patch pocket.wts.patch  -nstruct $nstruct -pocket_zero_derivatives -cst_fa_file $cst_file -out:path:pdb ${input_pdb%%.pdb}_Relax_OUT -out:file:scorefile ${input_pdb%%.pdb}.pocket_relax.sc
+
+receptor_chain="A"
+peptide_chain="C"
+input_pdb=$1
+nstruct=$2
+
+mkdir ${input_pdb%%.pdb}_OUT
+
+mpirun -np 24 ${rosetta_app}/FlexPepDocking.linuxgccrelease -receptor_chain $receptor_chain -flexPepDocking:peptide_chain $peptide_chain -ex1 -ex2aro -in:file:s ${input_pdb} -database ${rosetta_db} -pep_refine -out:file:scorefile ${input_pdb%%.pdb}.FlexPepDocking.refine.sc -score:weights ref2015_cart -out:pdb -out:path:pdb ${input_pdb%%.pdb}_OUT -nstruct $nstruct
+
+
